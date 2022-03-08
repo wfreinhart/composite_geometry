@@ -1,4 +1,4 @@
-import numpy as np
+import meshio
 import pygmsh
 import trimesh
 
@@ -50,3 +50,16 @@ def is_watertight(this_gmsh):
             triangles = cell.data
     tm_build = trimesh.Trimesh(vertices=this_gmsh.points, faces=triangles)
     return tm_build.is_watertight
+
+
+def write_xdmf(msh, fname):
+    for cell in msh.cells:
+        if cell.type == "triangle":
+            triangle_cells = cell.data
+        elif cell.type == "tetra":
+            tetra_cells = cell.data
+
+    tetra_mesh = meshio.Mesh(points=msh.points, cells={"tetra": tetra_cells})
+
+    # Save mesh file as .xdmf
+    meshio.write(fname, tetra_mesh)
