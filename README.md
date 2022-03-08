@@ -1,0 +1,1 @@
+This is a lightweight utility for generating volumetric meshes for Finite Element Analysis of composite materials.
