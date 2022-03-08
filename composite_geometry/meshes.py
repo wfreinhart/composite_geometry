@@ -10,6 +10,12 @@ def generate_meshes(bv, rf, length_scale=3*1e-3):
         geom.characteristic_length_max = length_scale
         # create the reinforcements
         build_volume = bv.generate(geom)
+
+        if rf is None:  # return the full build volume
+            gmsh_matrix = geom.generate_mesh()
+            gmsh_full = geom.generate_mesh()
+            return gmsh_matrix, gmsh_full
+
         if type(rf) is list:
             reinforcements = []
             for it in rf:
