@@ -1,6 +1,7 @@
 import meshio
 import pygmsh
 import trimesh
+import numpy as np
 
 
 def generate_meshes(bv, rf, length_scale=3*1e-3):
@@ -47,7 +48,7 @@ def assign_materials(gmsh_matrix, gmsh_full):
             triangles = cell.data
     tm = trimesh.Trimesh(vertices=gmsh_matrix.points, faces=triangles)
     sdf = trimesh.proximity.signed_distance(tm, centroids)
-    return (sdf > 0).astype(int)  # the SDF uses positive to indicate interior (https://trimsh.org/trimesh.proximity.html#trimesh.proximity.signed_distance)
+    return np.logical_not(sdf > 0).astype(int)  # the SDF uses positive to indicate interior (https://trimsh.org/trimesh.proximity.html#trimesh.proximity.signed_distance)
 
 
 def is_watertight(this_gmsh):
