@@ -1,6 +1,6 @@
-name = "composite_geometry"
+name = "geometry"
 
-__version__ = '0.0.1'
+__version__ = '0.1.0'
 
 from . import meshes
 from . import reinforcement
