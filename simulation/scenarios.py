@@ -76,6 +76,11 @@ def hyperelastic_uniaxial_compression(delta_z, msh, model, u_init=None, friction
     return u
 
 
+def stress_strain_curve(strain):
+    # TODO - implement this function for convenience
+    pass
+
+
 def analytical_uniaxial_stress(stress_model, trueStrainVec):
     stress = np.zeros(len(trueStrainVec))
     for i in range(len(trueStrainVec)):

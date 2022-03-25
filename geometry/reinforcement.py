@@ -60,12 +60,10 @@ class UnequalLayerReinforcement(object):
         low, high = build_volume.extents()
         layer_base = self.layer_base * (high[2]-low[2]) - low[2]
         height = self.height * (high[2]-low[2]) - low[2]
-        print(layer_base, height)
         for i, pt in enumerate(layer_base):
             x0 = [low[0], low[1], pt]
             ext = [high[0]-low[0], high[1]-low[1], height[i]]
             reinforcements.append(geom.add_box(x0, ext))
-        print(reinforcements)
         return reinforcements
 
 

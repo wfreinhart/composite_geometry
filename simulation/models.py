@@ -5,7 +5,7 @@ import numpy as np
 class ConstitutiveModel(object):
     required_props = ('E', 'nu')
 
-    def __init__(self, msh, mat_id, properties):
+    def __init__(self, mesh, mat_id, properties):
 
         if any([it not in properties for it in self.required_props]):
             raise ValueError(f'{self.required_props} values are required in properties dict.')
@@ -18,7 +18,10 @@ class ConstitutiveModel(object):
         properties['lambda'] = E * nu / (1 + nu) / (1 - 2 * nu)
         properties['mu'] = E / 2 / (1 + nu)
 
-        V0 = fem.FunctionSpace(msh, 'DG', 0)
+        self.mesh = mesh
+
+        V0 = fem.FunctionSpace(mesh, 'DG', 0)
+        self.V0 = V0
 
         self.properties_ = {}
         for k, v in properties.items():
