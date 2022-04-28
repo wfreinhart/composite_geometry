@@ -23,15 +23,39 @@ def generate_meshes(bv, rf, length_scale=3*1e-3):
                 reinforcements += it.generate(geom, bv)
         else:
             reinforcements = rf.generate(geom, bv)
-        # create the matrix
+        # create the matrix mesh
         matrix = geom.boolean_difference(build_volume, reinforcements)
         gmsh_matrix = geom.generate_mesh()
-        # create the full mesh
+        # create the reinforcement mesh
         build_volume = bv.generate(geom)
-        everything = geom.boolean_union([build_volume] + matrix)
-        gmsh_full = geom.generate_mesh()
+        all_reinforcements = geom.boolean_difference(build_volume, matrix)
+        gmsh_reinf = geom.generate_mesh()
 
-    return gmsh_matrix, gmsh_full
+    return gmsh_matrix, gmsh_reinf
+
+
+def combine_meshes(mesh_A, mesh_B, prec_digits=8):
+    stack = np.vstack([mesh_A.points.round(prec_digits), mesh_B.points.round(prec_digits)])
+    new_points, idx, inv = np.unique(stack, axis=0, return_inverse=True, return_index=True)
+
+    new_tri_A = inv[mesh_A.cells_dict['triangle']]  # gmsh_matrix.cells_dict['triangle'][stack_idx[inv]]
+    new_tri_B = inv[mesh_B.cells_dict['triangle'] + mesh_A.points.shape[0]]
+    new_tri = np.vstack([new_tri_A, new_tri_B])
+
+    new_tet_A = inv[mesh_A.cells_dict['tetra']]
+    new_tet_B = inv[mesh_B.cells_dict['tetra'] + mesh_A.points.shape[0]]
+    new_tet = np.vstack([new_tet_A, new_tet_B])
+
+    mat_id = np.ones_like(new_tet[:, 0])
+    mat_id[:new_tet_A.shape[0]] = 0
+
+    tetra_mesh = meshio.Mesh(
+        points=new_points,
+        cells={'triangle': new_tri, 'tetra': new_tet},
+        # cell_data={"material": [[], mat_id]},  # TODO
+    )
+
+    return tetra_mesh, mat_id
 
 
 def assign_materials(gmsh_matrix, gmsh_full):
