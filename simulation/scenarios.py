@@ -12,7 +12,7 @@ class Problem(object):
         return self.solver(self.u, self.v, self.du, self.bcs, self.model)
 
 
-def hyperelastic_uniaxial_compression(delta_z, msh, model, u_init=None, friction=True):
+def hyperelastic_uniaxial_compression(delta_z, msh, model, u_init=None, friction=True, q_deg=None):
 
     # --------------------
     # Function spaces (superseded by the mesh only)
@@ -54,7 +54,10 @@ def hyperelastic_uniaxial_compression(delta_z, msh, model, u_init=None, friction
     # ------------------------
 
     # Total potential energy
-    Pi = model.psi(u) * fem.dx  # - dot(B, u)*dx # - dot(T, u)*ds(1)
+    if q_deg is None:
+        Pi = model.psi(u) * fem.dx  # - dot(B, u)*dx # - dot(T, u)*ds(1)
+    else:
+        Pi = model.psi(u) * fem.dx(metadata={'quadrature_degree': q_deg})
 
     # Compute first variation of Pi (directional derivative about u in the direction of v)
     F = fem.derivative(Pi, u, v)
