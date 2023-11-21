@@ -72,7 +72,7 @@ def hyperelastic_uniaxial_compression(delta_z, msh, model, u_init=None, friction
     problem = fem.NonlinearVariationalProblem(F, u, bcs, J)
     solver = fem.NonlinearVariationalSolver(problem)
     prm = solver.parameters
-    prm['newton_solver']['maximum_iterations'] = 25
+    prm['newton_solver']['maximum_iterations'] = 10
 
     solver.solve()
 

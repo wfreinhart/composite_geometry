@@ -22,14 +22,15 @@ class SphereReinforcement(object):
 
 class LayerReinforcement(object):
     # TODO: add option for non-[0 0 1] layering direction
-    def __init__(self, height, spacing):
+    def __init__(self, height, spacing, offset=0.):
         self.height = height
         self.spacing = spacing
+        self.offset = offset
 
     def generate(self, geom, build_volume):
         reinforcements = []
         low, high = build_volume.extents()
-        layer_base = np.arange(0, high[2], self.spacing)
+        layer_base = np.arange(self.offset, high[2]-self.height, self.spacing)
         for pt in layer_base:
             x0 = [low[0], low[1], pt]
             ext = [high[0]-low[0], high[1]-low[1], self.height]

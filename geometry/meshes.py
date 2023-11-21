@@ -14,8 +14,8 @@ def generate_meshes(bv, rf, length_scale=3*1e-3):
 
         if rf is None:  # return the full build volume
             gmsh_matrix = geom.generate_mesh()
-            gmsh_full = geom.generate_mesh()
-            return gmsh_matrix, gmsh_full
+            # gmsh_full = geom.generate_mesh()
+            return gmsh_matrix, None
 
         if type(rf) is list:
             reinforcements = []
@@ -35,19 +35,25 @@ def generate_meshes(bv, rf, length_scale=3*1e-3):
 
 
 def combine_meshes(mesh_A, mesh_B, prec_digits=8):
-    stack = np.vstack([mesh_A.points.round(prec_digits), mesh_B.points.round(prec_digits)])
-    new_points, idx, inv = np.unique(stack, axis=0, return_inverse=True, return_index=True)
-
-    new_tri_A = inv[mesh_A.cells_dict['triangle']]  # gmsh_matrix.cells_dict['triangle'][stack_idx[inv]]
-    new_tri_B = inv[mesh_B.cells_dict['triangle'] + mesh_A.points.shape[0]]
-    new_tri = np.vstack([new_tri_A, new_tri_B])
-
-    new_tet_A = inv[mesh_A.cells_dict['tetra']]
-    new_tet_B = inv[mesh_B.cells_dict['tetra'] + mesh_A.points.shape[0]]
-    new_tet = np.vstack([new_tet_A, new_tet_B])
-
-    mat_id = np.ones_like(new_tet[:, 0])
-    mat_id[:new_tet_A.shape[0]] = 0
+    if mesh_B is None:
+        new_points = mesh_A.points
+        new_tri = mesh_A.cells_dict['triangle']
+        new_tet = mesh_A.cells_dict['tetra']
+        mat_id = np.zeros_like(new_tet[:, 0])
+    else:
+        stack = np.vstack([mesh_A.points.round(prec_digits), mesh_B.points.round(prec_digits)])
+        new_points, idx, inv = np.unique(stack, axis=0, return_inverse=True, return_index=True)
+    
+        new_tri_A = inv[mesh_A.cells_dict['triangle']]  # gmsh_matrix.cells_dict['triangle'][stack_idx[inv]]
+        new_tri_B = inv[mesh_B.cells_dict['triangle'] + mesh_A.points.shape[0]]
+        new_tri = np.vstack([new_tri_A, new_tri_B])
+    
+        new_tet_A = inv[mesh_A.cells_dict['tetra']]
+        new_tet_B = inv[mesh_B.cells_dict['tetra'] + mesh_A.points.shape[0]]
+        new_tet = np.vstack([new_tet_A, new_tet_B])
+    
+        mat_id = np.ones_like(new_tet[:, 0])
+        mat_id[:new_tet_A.shape[0]] = 0
 
     tetra_mesh = meshio.Mesh(
         points=new_points,
