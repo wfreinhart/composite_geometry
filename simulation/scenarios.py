@@ -87,8 +87,9 @@ def stress_strain_curve(strain):
 def analytical_uniaxial_stress(stress_model, trueStrainVec):
     stress = np.zeros(len(trueStrainVec))
     for i in range(len(trueStrainVec)):
-        lam1 = np.exp(trueStrainVec[i])  # TODO: reconcile this choice with the simulation
-        calcS22Abs = lambda x : np.abs(stress_model([lam1, x, x])[1, 1])
+        # lam1 = np.exp(trueStrainVec[i])  # TODO: reconcile this choice with the simulation
+        lam1 = 1. + trueStrainVec[i]
+        calcS22Abs = lambda x : np.abs(stress_model([lam1, x.tolist()[0], x.tolist()[0]])[1, 1])
         lam2 = optimize.fmin(calcS22Abs, x0=1/np.sqrt(lam1), xtol=1e-9, ftol=1e-9, disp=False)
-        stress[i] = stress_model([lam1, lam2, lam2])[0, 0]
+        stress[i] = stress_model([lam1, lam2.tolist()[0], lam2.tolist()[0]])[0, 0]
     return stress
