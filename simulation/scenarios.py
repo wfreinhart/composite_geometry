@@ -79,9 +79,119 @@ def hyperelastic_uniaxial_compression(delta_z, msh, model, u_init=None, friction
     return u
 
 
-def stress_strain_curve(strain):
-    # TODO - implement this function for convenience
-    pass
+def get_reaction_force_area(u, mesh, model, dim=2, use_pk=False):
+
+    mesh_d = mesh
+
+    boundary_markers = fem.MeshFunction("size_t", mesh_d, mesh_d.topology().dim() - 1, 0)
+
+    class TopBoundary(fem.SubDomain):
+        def inside(self, x, on_boundary):
+            return fem.near(x[2], mesh_d.coordinates()[:, 2].max()) and on_boundary
+
+    # Mark the top boundary
+    top_boundary = TopBoundary()
+    boundary_markers.set_all(0)  # Initialize to 0
+    top_boundary.mark(boundary_markers, 1)  # Mark the top boundary with 1
+
+    if use_pk:
+        #
+        I = fem.Identity(3)  # Identity tensor
+        F = I + fem.grad(u)  # Deformation gradient
+        J = fem.det(F)
+        sigma = model.sigma(u)
+        P = J * sigma * fem.inv(F)
+        # Compute the reaction force
+        ds = fem.Measure("ds", domain=mesh_d, subdomain_data=boundary_markers)
+        n = fem.FacetNormal(mesh_d)
+        rz = [fem.assemble(fem.dot(P, n)[i] * ds(1)) for i in range(3)]
+    else:
+        # Compute the reaction force
+        sigma = model.sigma(u)
+        ds = fem.Measure("ds", domain=mesh_d, subdomain_data=boundary_markers)
+        n = fem.FacetNormal(mesh_d)
+        rz = [fem.assemble(fem.dot(sigma, n)[i] * ds(1)) for i in range(3)]
+
+    surf = fem.assemble(fem.Constant(1.0) * ds(1))
+
+    return rz, surf
+
+
+def get_area(u, mesh, model, dim=2):
+    mesh_d = fem.Mesh(mesh)
+
+    boundary_markers = fem.MeshFunction("size_t", mesh_d, mesh_d.topology().dim() - 1, 0)
+
+    class TopBoundary(fem.SubDomain):
+        def inside(self, x, on_boundary):
+            return fem.near(x[2], mesh_d.coordinates()[:, 2].max()) and on_boundary
+
+    # Mark the top boundary
+    top_boundary = TopBoundary()
+    boundary_markers.set_all(0)  # Initialize to 0
+    top_boundary.mark(boundary_markers, 1)  # Mark the top boundary with 1
+
+    # Deform the mesh
+    fem.ALE.move(mesh_d, u)
+
+    # Measure the area of the top surface
+    ds = fem.Measure("ds", domain=mesh_d, subdomain_data=boundary_markers)
+    surf = fem.assemble(fem.Constant(1.0) * ds(1))
+
+    return surf
+
+
+def generate_force_curve(model, mesh, bv, target_strain, max_stress=10e6, interp_mode="continue", alpha=0.50):
+
+    u_sols = []
+
+    force = np.zeros_like(target_strain) * np.nan
+
+    pbar = tqdm.tqdm(enumerate(target_strain), total=len(target_strain))
+    for i, eps in pbar:
+
+        u_init = None
+        if interp_mode == "continue":
+            if i > 1:
+                u_init = u_sols[i-1]
+        elif interp_mode == "taylor":
+            # nonlinear warm start
+            if i == 1:    # do order-zero taylor expansion
+                u_init = u_sols[0]
+            elif i == 2:  # do order-one taylor expansion
+                step = (u_sols[i-1] - u_sols[i-2])
+                u_init = u_sols[i-1] + alpha * step
+            elif i == 3:  # do order-two taylor expansion
+                step = (u_sols[i-1] - u_sols[i-2]) + (u_sols[i-1] - 2*u_sols[i-2] + u_sols[i-3])
+                u_init = u_sols[i-1] + alpha * step
+            elif i == 4:  # do order-three taylor expansion
+                step = (u_sols[i-1] - u_sols[i-2]) + (u_sols[i-1] - 2*u_sols[i-2] + u_sols[i-3]) + (u_sols[i-1] - 3*u_sols[i-2] + 3*u_sols[i-3] - u_sols[i-4])
+                u_init = u_sols[i-1] + alpha * step
+            elif i >= 5:  # do order-four taylor expansion
+                step = (u_sols[i-1] - u_sols[i-2]) + (u_sols[i-1] - 2*u_sols[i-2] + u_sols[i-3]) + (u_sols[i-1] - 3*u_sols[i-2] + 3*u_sols[i-3] - u_sols[i-4]) + (u_sols[i-1] - 4*u_sols[i-2] + 6*u_sols[i-3] - 4*u_sols[i-4] + u_sols[i-5])
+                u_init = u_sols[i-1] + alpha * step
+        elif interp_mode == "proportional":
+            if i > 1:
+                u_init = u_sols[i-1] * target_strain[i] / target_strain[i-1]
+        elif interp_mode == "secant":
+            if i > 1:
+                u_init = u_sols[i-1] - (target_strain[i-1] * (u_sols[i-1] - u_sols[i-2])) / (target_strain[i-1] - target_strain[i-2])
+
+        disp = -eps*bv.height
+        try:
+            u = sim.scenarios.hyperelastic_uniaxial_compression(disp, mesh, model, u_init=u_init)
+            u_sols.append(np.array(u.vector()))
+        except RuntimeError:
+            break  # save progress so far
+
+        f, area = get_reaction_force_area(u, mesh, model)
+        force[i] = f[2]
+        
+        stress = f[2] / area
+        if np.abs(stress) > max_stress:
+            break
+
+    return force / area
 
 
 def analytical_uniaxial_stress(stress_model, trueStrainVec):
